@@ -1,0 +1,35 @@
+%info
+
+QUIC proxy performance with different latency settings
+
+%config
+n_runs=10
+timeout=150
+
+%variables
+SERVER_DELAY={0,5,10,25,50}
+TUNNEL_DELAY={0,5,10,25,50}
+
+%script@proxy delay=1
+/root/quic_proxy/target/release/quiche_server -a passive -i 10.0.0.1 -m 10.100.3.3
+ 
+
+%script@setup delay=1 autokill=false
+tc qdisc del dev wg0 root netem 2>/dev/null
+tc qdisc add dev wg0 root netem delay ${TUNNEL_DELAY}ms
+tc qdisc del dev eth2 root netem 2>/dev/null
+tc qdisc add dev eth2 root netem delay ${SERVER_DELAY}ms
+
+%script@vpn delay=1 autokill=false
+tc qdisc del dev wg0 root netem 2>/dev/null
+tc qdisc add dev wg0 root netem delay ${TUNNEL_DELAY}ms
+
+%script@server delay=1 autokill=false
+tc qdisc del dev eth1 root netem 2>/dev/null
+tc qdisc add dev eth1 root netem delay ${SERVER_DELAY}ms
+
+%script@client delay=2
+rm /root/chrome-headless-shell-linux64/tests_files/* 2>/dev/null
+node /root/chrome-headless-shell-linux64/download_test.js --use-proxy --url=https://10.100.3.1:4433/data/2M.bin >> /root/mesures/log.txt
+TIME=$(tail -n 1 /root/mesures/log.txt | awk '{print $NF;}')
+echo "RESULT-LOAD-TIME ${TIME}"

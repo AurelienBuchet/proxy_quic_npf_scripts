@@ -1,0 +1,21 @@
+%info
+
+QUIC proxy vs standard HTTP throughput measures
+
+%config
+n_runs=10
+timeout=150
+
+%variables
+SIZE={1M,2M,10M,50M,100M}
+PROXY={:without, --use-proxy:with}
+
+%script@proxy delay=1
+/root/quic_proxy/target/release/quiche_server 
+
+%script@client delay=3
+
+rm /root/chrome-headless-shell-linux64/tests_files/* 2>/dev/null
+node /root/chrome-headless-shell-linux64/download_test.js  $PROXY  --url=https://10.100.3.1:4433/data/${SIZE}.bin >> /root/mesures/log.txt
+TIME=$(tail -n 1 /root/mesures/log.txt | awk '{print $NF;}')
+echo "RESULT-LOAD-TIME ${TIME}"
